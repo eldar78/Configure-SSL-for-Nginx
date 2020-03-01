@@ -45,11 +45,18 @@ sudo openssl dhparam -out /etc/nginx/ssl/dhparam.pem 4096
 Once you get all the SSL related files ready, configure the default server block for SSL. Open its configuration file for editing,
 sudo nano /etc/nginx/sites-enabled/default
 
-Edit the server configuration part adding the SSL part after the server_name directive as shown below,
+Edit the server configuration part adding the SSL part after the server_name directive as shown below
+        
 
     server {
-    ...
-           server_name localhost;
+            server_name example.com www.example.com;
+            listen 80;
+            listen 443 default_server ssl;
+            # force https-redirects
+            if ($scheme = http) {
+            return 301 https://$server_name$request_uri;
+            }
+           
             ### SSL Config
             listen 443 ssl;
             ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
@@ -58,6 +65,17 @@ Edit the server configuration part adding the SSL part after the server_name dir
             ssl_dhparam /etc/nginx/ssl/dhparam.pem;
             ssl_certificate /etc/nginx/ssl/nginx.crt;
             ssl_certificate_key /etc/nginx/ssl/nginx.key;
+                  
+            client_max_body_size 51M;
+            client_header_buffer_size 2048k;
+            #large_client_header_buffers 4 204
+
+            # Secure NGINX from Clickjacking attack
+            add_header X-Frame-Options "deny";
+            add_header X-Content-Type-Options nosniff;
+            add_header X-XSS-Protection "1; mode=block";
+
+
 
 ...
 
@@ -74,28 +92,5 @@ Let's quickly go through each of the configuration parameters configured above :
 Save and close the file, reload 'nginx' to bring above settings in effect.
 sudo systemctl reload nginx
 
-server {
-        server_name example.com www.example.com;
-        listen 80;
-        listen 443 default_server ssl;
 
-        # force https-redirects
-        if ($scheme = http) {
-            return 301 https://$server_name$request_uri;
-        }
 
-        ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
-        ssl_ciphers 'EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH';
-        ssl_prefer_server_ciphers on;
-        ssl_dhparam /etc/nginx/ssl/dhparam.pem;
-        ssl_certificate /etc/nginx/ssl/nginx.crt;
-        ssl_certificate_key /etc/nginx/ssl/nginx.key;
-
-        client_max_body_size 51M;
-        client_header_buffer_size 2048k;
-        #large_client_header_buffers 4 204
-
-        # Secure NGINX from Clickjacking attack
-        add_header X-Frame-Options "deny";
-        add_header X-Content-Type-Options nosniff;
-        add_header X-XSS-Protection "1; mode=block";
